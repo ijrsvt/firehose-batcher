@@ -2,18 +2,19 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	firehosebatcher "github.com/ijrsvt/firehose-batcher"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	firehosebatcher "github.com/thomaso-mirodin/firehose-batcher"
 	"github.com/thomaso-mirodin/tailer"
 )
 
@@ -25,7 +26,7 @@ type Flags struct {
 
 	cfg struct {
 		source   io.Reader
-		firehose *firehose.Firehose
+		firehose *firehose.Client
 	}
 }
 
@@ -50,7 +51,11 @@ func ParseFlags() (*Flags, error) {
 		}
 	}
 
-	f.cfg.firehose = firehose.New(session.Must(session.NewSession()))
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create AWS config")
+	}
+	f.cfg.firehose = firehose.NewFromConfig(cfg)
 
 	return f, nil
 }
