@@ -97,6 +97,7 @@ func main() {
 		f.cfg.firehose,
 		f.Args.FirehoseStreamName,
 		time.Second*60,
+		false,
 	)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "failed to create firehose batcher"))

@@ -27,15 +27,32 @@ func NewBatch(r types.Record) *Batch {
 	b := &Batch{
 		fillTimer: prometheus.NewTimer(BatchFillLatency),
 	}
-	b.Add(r)
+	b.Add(r, false)
 
 	BatchesCreated.Inc()
 
 	return b
 }
 
+func (b *Batch) appendToLastRecord(r types.Record) bool {
+	if b.Length() == 0 {
+		return false
+	}
+	existingData := b.contents[b.Length()-1].Data
+	if len(existingData)+len(r.Data)+1 >= PER_ITEM_SIZE_LIMIT {
+		return false
+	}
+	if len(existingData) != 0 {
+		existingData = append(existingData, []byte("\n")...)
+	}
+	b.contents[b.Length()-1].Data = append(existingData, r.Data...)
+
+	return true
+
+}
+
 // Add attempts to add a record to the batch. If adding the record would cause either the batch's total size or total length to exceed AWS API limits this will return an appropriate error.
-func (b *Batch) Add(r types.Record) error {
+func (b *Batch) Add(r types.Record, packRecords bool) error {
 	if b.contents == nil {
 		b.contents = make([]types.Record, 0, BATCH_ITEM_LIMIT)
 	}
@@ -45,11 +62,13 @@ func (b *Batch) Add(r types.Record) error {
 		return ErrBatchSizeOverflow
 	}
 
-	if b.Length()+1 > BATCH_ITEM_LIMIT {
-		return ErrBatchLengthOverflow
-	}
+	if !(packRecords && b.appendToLastRecord(r)) {
+		if b.Length()+1 > BATCH_ITEM_LIMIT {
+			return ErrBatchLengthOverflow
+		}
 
-	b.contents = append(b.contents, r)
+		b.contents = append(b.contents, r)
+	}
 
 	b.size += rSize
 	BytesBatched.Add(float64(rSize))
