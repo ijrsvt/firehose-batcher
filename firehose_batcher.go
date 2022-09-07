@@ -3,7 +3,8 @@ package firehosebatcher
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -13,14 +14,14 @@ type FirehoseBatcher struct {
 	streamName      string
 	maxSendInterval time.Duration
 
-	firehoseClient *firehose.Firehose
+	firehoseClient *firehose.Client
 
 	inputBuffer     chan []byte
 	batchSendBuffer chan *Batch
 }
 
 // New constructs a FirehoseBatcher that will send batches to Firehose whenever either a batch is full (size or length) or every interval.
-func New(fc *firehose.Firehose, streamName string, sendTimeout time.Duration) (*FirehoseBatcher, error) {
+func New(fc *firehose.Client, streamName string, sendTimeout time.Duration) (*FirehoseBatcher, error) {
 	fb := &FirehoseBatcher{
 		streamName:      streamName,
 		maxSendInterval: sendTimeout,
@@ -61,7 +62,7 @@ func (fb *FirehoseBatcher) startBatching() {
 
 	for {
 		initial := <-fb.inputBuffer
-		batch := NewBatch(&firehose.Record{Data: initial})
+		batch := NewBatch(types.Record{Data: initial})
 
 	BatchingLoop:
 		for batch.Length() < BATCH_ITEM_LIMIT {
@@ -78,7 +79,7 @@ func (fb *FirehoseBatcher) startBatching() {
 					return
 				}
 
-				record := &firehose.Record{Data: b}
+				record := types.Record{Data: b}
 				switch err := batch.Add(record); err {
 				case nil:
 					// Noop

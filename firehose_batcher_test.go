@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ func dataToBatch(msgs [][]byte) *Batch {
 	b := new(Batch)
 
 	for _, m := range msgs {
-		err := b.Add(&firehose.Record{Data: m})
+		err := b.Add(types.Record{Data: m})
 		if err != nil {
 			panic(err)
 		}

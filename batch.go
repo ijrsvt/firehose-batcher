@@ -1,7 +1,10 @@
 package firehosebatcher
 
 import (
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -14,13 +17,13 @@ var (
 // Batch is really just a wrapper around a slice of `firehose.Record`s that tracks the size and length to make sure we don't create a batch that can't be sent to Firehose.
 type Batch struct {
 	size     int
-	contents []*firehose.Record
+	contents []types.Record
 
 	fillTimer *prometheus.Timer
 }
 
 // NewBatch construct a batch with an intializing record
-func NewBatch(r *firehose.Record) *Batch {
+func NewBatch(r types.Record) *Batch {
 	b := &Batch{
 		fillTimer: prometheus.NewTimer(BatchFillLatency),
 	}
@@ -32,9 +35,9 @@ func NewBatch(r *firehose.Record) *Batch {
 }
 
 // Add attempts to add a record to the batch. If adding the record would cause either the batch's total size or total length to exceed AWS API limits this will return an appropriate error.
-func (b *Batch) Add(r *firehose.Record) error {
+func (b *Batch) Add(r types.Record) error {
 	if b.contents == nil {
-		b.contents = make([]*firehose.Record, 0, BATCH_ITEM_LIMIT)
+		b.contents = make([]types.Record, 0, BATCH_ITEM_LIMIT)
 	}
 
 	rSize := len(r.Data)
@@ -65,12 +68,14 @@ func (b *Batch) Length() int {
 }
 
 // Send calls firehose.PutRecordBatch with the given batch. It does not current handle or retry on any sort of failure. This can cause unrecoverable message drops.
-func (b *Batch) Send(client *firehose.Firehose, streamName string) error {
-	prbo, err := client.PutRecordBatch(&firehose.PutRecordBatchInput{
-		DeliveryStreamName: &streamName,
+func (b *Batch) Send(client *firehose.Client, streamName string) error {
+	prbo, err := client.PutRecordBatch(
+		context.TODO(),
+		&firehose.PutRecordBatchInput{
+			DeliveryStreamName: &streamName,
 
-		Records: b.contents,
-	})
+			Records: b.contents,
+		})
 	if err != nil {
 		return err
 	}
