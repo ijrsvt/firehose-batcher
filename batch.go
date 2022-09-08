@@ -39,11 +39,8 @@ func (b *Batch) appendToLastRecord(r types.Record) bool {
 		return false
 	}
 	existingData := b.contents[b.Length()-1].Data
-	if len(existingData)+len(r.Data)+1 >= PER_ITEM_SIZE_LIMIT {
+	if len(existingData)+len(r.Data) >= PER_ITEM_SIZE_LIMIT {
 		return false
-	}
-	if len(existingData) != 0 {
-		existingData = append(existingData, []byte("\n")...)
 	}
 	b.contents[b.Length()-1].Data = append(existingData, r.Data...)
 
