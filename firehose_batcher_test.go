@@ -13,7 +13,7 @@ func dataToBatch(msgs [][]byte) *Batch {
 	b := new(Batch)
 
 	for _, m := range msgs {
-		err := b.Add(types.Record{Data: m})
+		err := b.Add(types.Record{Data: m}, false)
 		if err != nil {
 			panic(err)
 		}
@@ -105,7 +105,7 @@ func TestBatching(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			fb, err := New(nil, "n/a", test.sendTimeout)
+			fb, err := New(nil, "n/a", test.sendTimeout, false)
 			if err != nil {
 				panic(err)
 			}

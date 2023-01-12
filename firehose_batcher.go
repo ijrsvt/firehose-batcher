@@ -13,6 +13,7 @@ import (
 type FirehoseBatcher struct {
 	streamName      string
 	maxSendInterval time.Duration
+	packRecords     bool
 
 	firehoseClient *firehose.Client
 
@@ -21,10 +22,11 @@ type FirehoseBatcher struct {
 }
 
 // New constructs a FirehoseBatcher that will send batches to Firehose whenever either a batch is full (size or length) or every interval.
-func New(fc *firehose.Client, streamName string, sendTimeout time.Duration) (*FirehoseBatcher, error) {
+func New(fc *firehose.Client, streamName string, sendTimeout time.Duration, packRecords bool) (*FirehoseBatcher, error) {
 	fb := &FirehoseBatcher{
 		streamName:      streamName,
 		maxSendInterval: sendTimeout,
+		packRecords:     packRecords,
 
 		firehoseClient: fc,
 
@@ -80,7 +82,7 @@ func (fb *FirehoseBatcher) startBatching() {
 				}
 
 				record := types.Record{Data: b}
-				switch err := batch.Add(record); err {
+				switch err := batch.Add(record, fb.packRecords); err {
 				case nil:
 					// Noop
 				case ErrBatchSizeOverflow, ErrBatchLengthOverflow:
